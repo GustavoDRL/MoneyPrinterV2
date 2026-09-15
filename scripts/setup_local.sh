@@ -70,6 +70,10 @@ cfg.setdefault("cloudflare_worker_url", "")
 cfg.setdefault("whisper_model", "base")
 cfg.setdefault("whisper_device", "auto")
 cfg.setdefault("whisper_compute_type", "int8")
+cfg.setdefault("tts_provider", "auto")
+cfg.setdefault("kitten_tts_voice", cfg.pop("tts_voice", "Jasper"))
+cfg.setdefault("gemini_tts_model", "gemini-3.1-flash-tts-preview")
+cfg.setdefault("gemini_tts_voice", "Kore")
 
 magick_path = os.environ.get("MAGICK_PATH", "")
 if magick_path:

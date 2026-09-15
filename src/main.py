@@ -81,7 +81,7 @@ def main():
                 nickname = question(" => Enter a nickname for this account: ")
                 fp_profile = question(" => Enter the path to the Firefox profile: ")
                 niche = question(" => Enter the account niche: ")
-                language = question(" => Enter the account language: ")
+                language = question(" => Enter the account language locale (e.g. pt-BR or en-US): ")
 
                 account_data = {
                     "id": generated_uuid,

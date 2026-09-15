@@ -15,7 +15,14 @@ if SRC_DIR not in sys.path:
 
 from classes.Tts import TTS
 from classes.YouTube import YouTube
-from config import get_codex_model, get_llm_provider, get_ollama_model
+from config import (
+    get_codex_model,
+    get_gemini_tts_model,
+    get_gemini_tts_voice,
+    get_llm_provider,
+    get_ollama_model,
+    get_tts_provider,
+)
 from llm_provider import select_model
 
 
@@ -36,7 +43,7 @@ def main() -> int:
         account_nickname="Local Demo",
         fp_profile_path="",
         niche="educação financeira prática para iniciantes",
-        language="Português brasileiro",
+        language="pt-BR",
         browser_enabled=False,
     )
     video_path = youtube.generate_video(TTS())
@@ -47,6 +54,13 @@ def main() -> int:
     shutil.copy2(video_path, final_video_path)
 
     result = {
+        "language": "pt-BR",
+        "voice_profile": {
+            "provider": get_tts_provider(),
+            "resolved_provider": "gemini",
+            "model": get_gemini_tts_model(),
+            "voice": get_gemini_tts_voice(),
+        },
         "subject": youtube.subject,
         "script": youtube.script,
         "metadata": youtube.metadata,

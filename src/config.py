@@ -235,15 +235,32 @@ def get_outreach_message_body_file() -> str:
     with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
         return json.load(file)["outreach_message_body_file"]
 
-def get_tts_voice() -> str:
-    """
-    Gets the TTS voice from the config file.
-
-    Returns:
-        voice (str): The TTS voice
-    """
+def get_tts_provider() -> str:
+    """Gets the TTS provider: auto, kitten, or gemini."""
     with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
-        return json.load(file).get("tts_voice", "Jasper")
+        return str(json.load(file).get("tts_provider", "auto")).strip().lower()
+
+def get_kitten_tts_voice() -> str:
+    """Gets the English KittenTTS voice."""
+    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
+        config = json.load(file)
+        return config.get("kitten_tts_voice", config.get("tts_voice", "Jasper"))
+
+def get_gemini_tts_model() -> str:
+    """Gets the multilingual Gemini TTS model."""
+    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
+        return json.load(file).get(
+            "gemini_tts_model", "gemini-3.1-flash-tts-preview"
+        )
+
+def get_gemini_tts_voice() -> str:
+    """Gets the Gemini TTS voice."""
+    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
+        return json.load(file).get("gemini_tts_voice", "Kore")
+
+def get_tts_voice() -> str:
+    """Backward-compatible alias for the KittenTTS voice."""
+    return get_kitten_tts_voice()
 
 def get_assemblyai_api_key() -> str:
     """

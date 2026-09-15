@@ -13,6 +13,7 @@ from .Tts import TTS
 from llm_provider import generate_text
 from config import *
 from status import *
+from language_profile import language_code, normalize_locale
 from uuid import uuid4
 from constants import *
 from typing import List
@@ -77,7 +78,7 @@ class YouTube:
         self._account_nickname: str = account_nickname
         self._fp_profile_path: str = fp_profile_path
         self._niche: str = niche
-        self._language: str = language
+        self._language: str = normalize_locale(language)
 
         self.images = []
 
@@ -424,10 +425,12 @@ class YouTube:
         """
         path = os.path.join(ROOT_DIR, ".mp", str(uuid4()) + ".wav")
 
-        # Clean script, remove every character that is not a word character, a space, a period, a question mark, or an exclamation mark.
-        self.script = re.sub(r"[^\w\s.?!]", "", self.script)
+        # Remove control characters without changing meaningful currency,
+        # percentage, or punctuation tokens that the TTS should pronounce.
+        spoken_script = re.sub(r"[\x00-\x1f\x7f]", " ", self.script)
+        spoken_script = re.sub(r"\s+", " ", spoken_script).strip()
 
-        tts_instance.synthesize(self.script, path)
+        tts_instance.synthesize(spoken_script, path, language=self.language)
 
         self.tts_path = path
 
@@ -496,7 +499,7 @@ class YouTube:
             path (str): Path to SRT file
         """
         aai.settings.api_key = get_assemblyai_api_key()
-        config = aai.TranscriptionConfig()
+        config = aai.TranscriptionConfig(language_code=language_code(self.language))
         transcriber = aai.Transcriber(config=config)
         transcript = transcriber.transcribe(audio_path)
         subtitles = transcript.export_subtitles_srt()
@@ -553,7 +556,11 @@ class YouTube:
                 device=device,
                 compute_type=compute_type,
             )
-            segments, _ = model.transcribe(audio_path, vad_filter=True)
+            segments, _ = model.transcribe(
+                audio_path,
+                language=language_code(self.language),
+                vad_filter=True,
+            )
             return list(segments)
 
         try:

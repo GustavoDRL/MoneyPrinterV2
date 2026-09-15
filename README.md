@@ -76,6 +76,10 @@ python3 scripts/demo_full_video.py
 python src/main.py
 ```
 
+YouTube account languages should use locales such as `pt-BR` or `en-US`. The
+default `tts_provider: auto` keeps text, narration, and transcription aligned:
+English uses local KittenTTS, while Portuguese uses multilingual Gemini TTS.
+
 ## Documentation
 
 All relevant documents can be found [here](docs/).

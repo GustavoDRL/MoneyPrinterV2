@@ -48,6 +48,31 @@ def main() -> int:
 
     ok(f"stt_provider={stt_provider}")
 
+    tts_provider = str(cfg.get("tts_provider", "auto")).strip().lower()
+    if tts_provider in {"auto", "kitten", "gemini"}:
+        ok(f"tts_provider={tts_provider}")
+    else:
+        fail(
+            f"Unsupported tts_provider '{tts_provider}'. "
+            "Expected auto, kitten, or gemini."
+        )
+        failures += 1
+
+    if tts_provider in {"auto", "kitten"}:
+        try:
+            import kittentts  # noqa: F401
+
+            ok("KittenTTS is installed for English narration")
+        except Exception as exc:
+            fail(f"KittenTTS is not importable: {exc}")
+            failures += 1
+
+    if tts_provider in {"auto", "gemini"}:
+        ok(
+            "Gemini TTS handles non-English narration "
+            f"with voice={cfg.get('gemini_tts_voice', 'Kore')}"
+        )
+
     imagemagick_path = cfg.get("imagemagick_path", "")
     if imagemagick_path and os.path.exists(imagemagick_path):
         ok(f"imagemagick_path exists: {imagemagick_path}")

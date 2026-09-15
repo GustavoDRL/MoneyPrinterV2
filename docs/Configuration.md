@@ -36,7 +36,10 @@ All your configurations will be in a file in the root directory, called `config.
 - `whisper_device`: `string` - Device for local Whisper (`auto`, `cpu`, `cuda`).
 - `whisper_compute_type`: `string` - Compute type for local Whisper (`int8`, `float16`, etc.).
 - `assembly_ai_api_key`: `string` - Your Assembly AI API key. Get yours from [here](https://www.assemblyai.com/app/).
-- `tts_voice`: `string` - Voice for KittenTTS text-to-speech. Default is `Jasper`. Options: `Bella`, `Jasper`, `Luna`, `Bruno`, `Rosie`, `Hugo`, `Kiki`, `Leo`.
+- `tts_provider`: `string` - `auto` selects KittenTTS for English and Gemini TTS for other locales. Explicit options are `kitten` and `gemini`.
+- `kitten_tts_voice`: `string` - English KittenTTS voice. Default is `Jasper`. Options: `Bella`, `Jasper`, `Luna`, `Bruno`, `Rosie`, `Hugo`, `Kiki`, `Leo`.
+- `gemini_tts_model`: `string` - Multilingual Gemini speech model. Default is `gemini-3.1-flash-tts-preview`.
+- `gemini_tts_voice`: `string` - Gemini speech voice. Default is `Kore`.
 - `font`: `string` - The font that will be used to generate images. This should be a `.ttf` file in the `fonts/` directory.
 - `imagemagick_path`: `string` - The path to the ImageMagick binary. This is used by MoviePy to manipulate images. Install ImageMagick from [here](https://imagemagick.org/script/download.php) and set the path to the `magick.exe` on Windows, or on Linux/MacOS the path to `convert` (usually /usr/bin/convert).
 - `script_sentence_length`: `number` - The number of sentences in the generated video script (default: `4`).
@@ -82,7 +85,10 @@ All your configurations will be in a file in the root directory, called `config.
   "whisper_device": "auto",
   "whisper_compute_type": "int8",
   "assembly_ai_api_key": "",
-  "tts_voice": "Jasper",
+  "tts_provider": "auto",
+  "kitten_tts_voice": "Jasper",
+  "gemini_tts_model": "gemini-3.1-flash-tts-preview",
+  "gemini_tts_voice": "Kore",
   "font": "bold_font.ttf",
   "imagemagick_path": "Path to magick.exe or on linux/macOS just /usr/bin/convert",
   "script_sentence_length": 4,
@@ -113,5 +119,14 @@ local `.env` file is ignored by Git.
 
 When `llm_provider` is `codex`, authenticate once with `codex login`. The Codex
 SDK reuses that saved ChatGPT login; no OpenAI Platform API key is required.
+
+## Language consistency
+
+Use a BCP-47 locale such as `pt-BR` or `en-US` when creating a YouTube account.
+The same canonical locale controls the Codex prompts, speech synthesis, and the
+Whisper transcription hint. With `tts_provider` set to `auto`, English uses the
+local KittenTTS model and Portuguese uses Gemini TTS. Selecting `kitten`
+explicitly for a non-English locale stops with an error instead of producing an
+English-accented narration.
 
 See [PostBridge.md](./PostBridge.md) for the full Post Bridge setup and behavior details.
