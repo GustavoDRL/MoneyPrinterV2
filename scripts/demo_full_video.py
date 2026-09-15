@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Run the complete local content pipeline without opening a browser or uploading."""
+
+import json
+import os
+import shutil
+import sys
+from datetime import datetime
+
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.join(ROOT_DIR, "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
+from classes.Tts import TTS
+from classes.YouTube import YouTube
+from config import get_codex_model, get_llm_provider, get_ollama_model
+from llm_provider import select_model
+
+
+def main() -> int:
+    provider = get_llm_provider()
+    model = get_codex_model() if provider == "codex" else get_ollama_model()
+    if model:
+        select_model(model)
+
+    output_dir = os.path.join(ROOT_DIR, ".mp", "demo_full")
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"[DEMO] Text provider: {provider} ({model or 'logged-in default'})")
+    print("[DEMO] Browser and publishing are disabled.")
+
+    youtube = YouTube(
+        account_uuid="local-demo",
+        account_nickname="Local Demo",
+        fp_profile_path="",
+        niche="educação financeira prática para iniciantes",
+        language="Português brasileiro",
+        browser_enabled=False,
+    )
+    video_path = youtube.generate_video(TTS())
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    final_video_path = os.path.join(output_dir, f"{stamp}.mp4")
+    result_path = os.path.join(output_dir, f"{stamp}.json")
+    shutil.copy2(video_path, final_video_path)
+
+    result = {
+        "subject": youtube.subject,
+        "script": youtube.script,
+        "metadata": youtube.metadata,
+        "image_prompts": youtube.image_prompts,
+        "images": youtube.images,
+        "narration": youtube.tts_path,
+        "video": final_video_path,
+        "published": False,
+    }
+    with open(result_path, "w", encoding="utf-8") as result_file:
+        json.dump(result, result_file, ensure_ascii=False, indent=2)
+        result_file.write("\n")
+
+    print(f"\n[RESULT] Subject: {youtube.subject}")
+    print(f"[RESULT] Title: {youtube.metadata['title']}")
+    print(f"[RESULT] Video: {final_video_path}")
+    print(f"[RESULT] Details: {result_path}")
+    print("[RESULT] Published: no")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(f"[FAIL] {exc}")
+        raise SystemExit(1)

@@ -6,6 +6,7 @@ import os
 import requests
 import assemblyai as aai
 
+from PIL import Image
 from utils import *
 from cache import *
 from .Tts import TTS
@@ -26,6 +27,10 @@ from selenium.webdriver.firefox.options import Options
 from moviepy.video.tools.subtitles import SubtitlesClip
 from webdriver_manager.firefox import GeckoDriverManager
 from datetime import datetime
+
+# MoviePy 1.x still references the Pillow constant removed in Pillow 10.
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.Resampling.LANCZOS
 
 # Set ImageMagick Path
 change_settings({"IMAGEMAGICK_BINARY": get_imagemagick_path()})
@@ -53,6 +58,7 @@ class YouTube:
         fp_profile_path: str,
         niche: str,
         language: str,
+        browser_enabled: bool = True,
     ) -> None:
         """
         Constructor for YouTube Class.
@@ -74,6 +80,9 @@ class YouTube:
         self._language: str = language
 
         self.images = []
+
+        if not browser_enabled:
+            return
 
         # Initialize the Firefox profile
         self.options: Options = Options()
@@ -138,7 +147,9 @@ class YouTube:
             topic (str): The generated topic.
         """
         completion = self.generate_response(
-            f"Please generate a specific video idea that takes about the following topic: {self.niche}. Make it exactly one sentence. Only return the topic, nothing else."
+            f"Please generate a specific video idea about the following topic: "
+            f"{self.niche}. Write it in {self.language}. Make it exactly one "
+            "sentence. Only return the topic, nothing else."
         )
 
         if not completion:
@@ -204,7 +215,9 @@ class YouTube:
             metadata (dict): The generated metadata.
         """
         title = self.generate_response(
-            f"Please generate a YouTube Video Title for the following subject, including hashtags: {self.subject}. Only return the title, nothing else. Limit the title under 100 characters."
+            f"Please generate a YouTube Video Title in {self.language} for the "
+            f"following subject, including hashtags: {self.subject}. Only return "
+            "the title, nothing else. Limit the title under 100 characters."
         )
 
         if len(title) > 100:
@@ -213,7 +226,9 @@ class YouTube:
             return self.generate_metadata()
 
         description = self.generate_response(
-            f"Please generate a YouTube Video Description for the following script: {self.script}. Only return the description, nothing else."
+            f"Please generate a YouTube Video Description in {self.language} for "
+            f"the following script: {self.script}. Only return the description, "
+            "nothing else."
         )
 
         self.metadata = {"title": title, "description": description}
@@ -227,7 +242,7 @@ class YouTube:
         Returns:
             image_prompts (List[str]): Generated List of image prompts.
         """
-        n_prompts = len(self.script) / 3
+        n_prompts = max(1, get_script_sentence_length())
 
         prompt = f"""
         Generate {n_prompts} Image Prompts for AI Image Generation,
@@ -293,9 +308,11 @@ class YouTube:
 
         return image_prompts
 
-    def _persist_image(self, image_bytes: bytes, provider_label: str) -> str:
+    def _persist_image(
+        self, image_bytes: bytes, provider_label: str, extension: str = ".png"
+    ) -> str:
         """
-        Writes generated image bytes to a PNG file in .mp.
+        Writes generated image bytes to a correctly suffixed file in .mp.
 
         Args:
             image_bytes (bytes): Image payload
@@ -304,7 +321,7 @@ class YouTube:
         Returns:
             path (str): Absolute image path
         """
-        image_path = os.path.join(ROOT_DIR, ".mp", str(uuid4()) + ".png")
+        image_path = os.path.join(ROOT_DIR, ".mp", str(uuid4()) + extension)
 
         with open(image_path, "wb") as image_file:
             image_file.write(image_bytes)
@@ -366,7 +383,14 @@ class YouTube:
                     mime_type = inline_data.get("mimeType") or inline_data.get("mime_type", "")
                     if data and str(mime_type).startswith("image/"):
                         image_bytes = base64.b64decode(data)
-                        return self._persist_image(image_bytes, "Nano Banana 2 API")
+                        extension = {
+                            "image/jpeg": ".jpg",
+                            "image/png": ".png",
+                            "image/webp": ".webp",
+                        }.get(str(mime_type).lower(), ".img")
+                        return self._persist_image(
+                            image_bytes, "Nano Banana 2 API", extension
+                        )
 
             if get_verbose():
                 warning(f"Nano Banana 2 did not return an image payload. Response: {body}")
@@ -520,12 +544,27 @@ class YouTube:
             )
             raise
 
-        model = WhisperModel(
-            get_whisper_model(),
-            device=get_whisper_device(),
-            compute_type=get_whisper_compute_type(),
-        )
-        segments, _ = model.transcribe(audio_path, vad_filter=True)
+        configured_device = get_whisper_device()
+        configured_compute_type = get_whisper_compute_type()
+
+        def transcribe(device: str, compute_type: str):
+            model = WhisperModel(
+                get_whisper_model(),
+                device=device,
+                compute_type=compute_type,
+            )
+            segments, _ = model.transcribe(audio_path, vad_filter=True)
+            return list(segments)
+
+        try:
+            segments = transcribe(configured_device, configured_compute_type)
+        except Exception as exc:
+            if configured_device != "auto":
+                raise
+            warning(
+                f"Automatic Whisper device failed; retrying on CPU with int8: {exc}"
+            )
+            segments = transcribe("cpu", "int8")
 
         lines = []
         for idx, segment in enumerate(segments, start=1):
@@ -616,8 +655,6 @@ class YouTube:
 
         final_clip = concatenate_videoclips(clips)
         final_clip = final_clip.set_fps(30)
-        random_song = choose_random_song()
-
         subtitles = None
         try:
             subtitles_path = self.generate_subtitles(self.tts_path)
@@ -627,11 +664,15 @@ class YouTube:
         except Exception as e:
             warning(f"Failed to generate subtitles, continuing without subtitles: {e}")
 
-        random_song_clip = AudioFileClip(random_song).set_fps(44100)
-
-        # Turn down volume
-        random_song_clip = random_song_clip.fx(afx.volumex, 0.1)
-        comp_audio = CompositeAudioClip([tts_clip.set_fps(44100), random_song_clip])
+        narration_clip = tts_clip.set_fps(44100)
+        try:
+            random_song = choose_random_song()
+            random_song_clip = AudioFileClip(random_song).set_fps(44100)
+            random_song_clip = random_song_clip.fx(afx.volumex, 0.1)
+            comp_audio = CompositeAudioClip([narration_clip, random_song_clip])
+        except Exception as exc:
+            warning(f"No background music available; using narration only: {exc}")
+            comp_audio = narration_clip
 
         final_clip = final_clip.set_audio(comp_audio)
         final_clip = final_clip.set_duration(tts_clip.duration)
@@ -670,6 +711,9 @@ class YouTube:
         # Generate the Images
         for prompt in self.image_prompts:
             self.generate_image(prompt)
+
+        if not self.images:
+            raise RuntimeError("Image generation failed; cannot assemble the video.")
 
         # Generate the TTS
         self.generate_script_to_speech(tts_instance)

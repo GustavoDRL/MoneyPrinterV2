@@ -69,6 +69,9 @@ python3 scripts/demo_llm.py
 # Small end-to-end demo: one concept and one image, saved under .mp/demo/
 python3 scripts/demo_content.py
 
+# Complete local video pipeline; never opens a browser or publishes
+python3 scripts/demo_full_video.py
+
 # Run the application
 python src/main.py
 ```
