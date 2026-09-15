@@ -14,6 +14,12 @@ from llm_provider import generate_text
 from config import *
 from status import *
 from language_profile import language_code, normalize_locale
+from subtitle_service import (
+    build_captions,
+    build_captions_from_words,
+    captions_to_srt,
+    get_subtitle_profile,
+)
 from uuid import uuid4
 from constants import *
 from typing import List
@@ -502,31 +508,20 @@ class YouTube:
         config = aai.TranscriptionConfig(language_code=language_code(self.language))
         transcriber = aai.Transcriber(config=config)
         transcript = transcriber.transcribe(audio_path)
-        subtitles = transcript.export_subtitles_srt()
+        words = [
+            (word.start / 1000, word.end / 1000, word.text)
+            for word in transcript.words
+        ]
+        subtitles = captions_to_srt(
+            build_captions_from_words(words, self.language)
+        )
 
         srt_path = os.path.join(ROOT_DIR, ".mp", str(uuid4()) + ".srt")
 
-        with open(srt_path, "w") as file:
+        with open(srt_path, "w", encoding="utf-8") as file:
             file.write(subtitles)
 
         return srt_path
-
-    def _format_srt_timestamp(self, seconds: float) -> str:
-        """
-        Formats a timestamp in seconds to SRT format.
-
-        Args:
-            seconds (float): Seconds
-
-        Returns:
-            ts (str): HH:MM:SS,mmm
-        """
-        total_millis = max(0, int(round(seconds * 1000)))
-        hours = total_millis // 3600000
-        minutes = (total_millis % 3600000) // 60000
-        secs = (total_millis % 60000) // 1000
-        millis = total_millis % 1000
-        return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
     def generate_subtitles_local_whisper(self, audio_path: str) -> str:
         """
@@ -560,6 +555,7 @@ class YouTube:
                 audio_path,
                 language=language_code(self.language),
                 vad_filter=True,
+                word_timestamps=True,
             )
             return list(segments)
 
@@ -573,21 +569,7 @@ class YouTube:
             )
             segments = transcribe("cpu", "int8")
 
-        lines = []
-        for idx, segment in enumerate(segments, start=1):
-            start = self._format_srt_timestamp(segment.start)
-            end = self._format_srt_timestamp(segment.end)
-            text = str(segment.text).strip()
-
-            if not text:
-                continue
-
-            lines.append(str(idx))
-            lines.append(f"{start} --> {end}")
-            lines.append(text)
-            lines.append("")
-
-        subtitles = "\n".join(lines)
+        subtitles = captions_to_srt(build_captions(segments, self.language))
         srt_path = os.path.join(ROOT_DIR, ".mp", str(uuid4()) + ".srt")
         with open(srt_path, "w", encoding="utf-8") as file:
             file.write(subtitles)
@@ -606,12 +588,13 @@ class YouTube:
         tts_clip = AudioFileClip(self.tts_path)
         max_duration = tts_clip.duration
         req_dur = max_duration / len(self.images)
+        subtitle_profile = get_subtitle_profile(self.language)
 
         # Make a generator that returns a TextClip when called with consecutive
         generator = lambda txt: TextClip(
             txt,
             font=os.path.join(get_fonts_dir(), get_font()),
-            fontsize=100,
+            fontsize=subtitle_profile.font_size,
             color="#FFFF00",
             stroke_color="black",
             stroke_width=5,
@@ -665,9 +648,9 @@ class YouTube:
         subtitles = None
         try:
             subtitles_path = self.generate_subtitles(self.tts_path)
-            equalize_subtitles(subtitles_path, 10)
-            subtitles = SubtitlesClip(subtitles_path, generator)
-            subtitles.set_pos(("center", "center"))
+            subtitles = SubtitlesClip(subtitles_path, generator).set_pos(
+                ("center", "center")
+            )
         except Exception as e:
             warning(f"Failed to generate subtitles, continuing without subtitles: {e}")
 

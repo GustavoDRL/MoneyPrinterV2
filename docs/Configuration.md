@@ -129,4 +129,10 @@ local KittenTTS model and Portuguese uses Gemini TTS. Selecting `kitten`
 explicitly for a non-English locale stops with an error instead of producing an
 English-accented narration.
 
+Subtitle generation uses the same locale and Whisper word timestamps. The
+profiles live in `src/subtitle_service.py`: `pt-BR` captions allow up to 32
+characters and 5 words, while `en-US` captions allow up to 36 characters and 6
+words. Add another `SubtitleProfile` entry there to support a new language
+without changing video composition or transcription code.
+
 See [PostBridge.md](./PostBridge.md) for the full Post Bridge setup and behavior details.

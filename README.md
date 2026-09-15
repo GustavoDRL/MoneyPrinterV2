@@ -79,6 +79,9 @@ python src/main.py
 YouTube account languages should use locales such as `pt-BR` or `en-US`. The
 default `tts_provider: auto` keeps text, narration, and transcription aligned:
 English uses local KittenTTS, while Portuguese uses multilingual Gemini TTS.
+Subtitles use word-level Whisper timestamps and locale-specific profiles, so
+Portuguese and English captions are grouped into readable phrases instead of
+being split at an arbitrary character count.
 
 ## Documentation
 

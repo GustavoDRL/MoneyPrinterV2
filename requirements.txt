@@ -14,7 +14,6 @@ Pillow>=10.0.0
 yagmail
 assemblyai
 faster-whisper
-srt_equalizer
 undetected_chromedriver
 platformdirs
 python-dotenv

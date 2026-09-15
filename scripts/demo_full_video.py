@@ -24,6 +24,7 @@ from config import (
     get_tts_provider,
 )
 from llm_provider import select_model
+from subtitle_service import get_subtitle_profile
 
 
 def main() -> int:
@@ -47,6 +48,7 @@ def main() -> int:
         browser_enabled=False,
     )
     video_path = youtube.generate_video(TTS())
+    subtitle_profile = get_subtitle_profile(youtube.language)
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     final_video_path = os.path.join(output_dir, f"{stamp}.mp4")
@@ -60,6 +62,12 @@ def main() -> int:
             "resolved_provider": "gemini",
             "model": get_gemini_tts_model(),
             "voice": get_gemini_tts_voice(),
+        },
+        "subtitle_profile": {
+            "locale": subtitle_profile.locale,
+            "max_chars": subtitle_profile.max_chars,
+            "max_words": subtitle_profile.max_words,
+            "font_size": subtitle_profile.font_size,
         },
         "subject": youtube.subject,
         "script": youtube.script,
