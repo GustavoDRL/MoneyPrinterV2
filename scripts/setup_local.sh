@@ -54,9 +54,14 @@ cfg_path = os.path.join(ROOT_DIR, "config.json")
 with open(cfg_path, "r", encoding="utf-8") as f:
     cfg = json.load(f)
 
+# Migrate the former API-key backend to the logged-in Codex SDK backend.
+if cfg.get("llm_provider") == "openai":
+    cfg["llm_provider"] = "codex"
+    cfg.pop("openai_model", None)
+
 # Set defaults per service without overriding explicit user choices.
-cfg.setdefault("llm_provider", "openai")
-cfg.setdefault("openai_model", "gpt-5.6-luna")
+cfg.setdefault("llm_provider", "codex")
+cfg.setdefault("codex_model", "")
 cfg.setdefault("stt_provider", "local_whisper")
 
 cfg.setdefault("ollama_base_url", "http://127.0.0.1:11434")
@@ -79,8 +84,11 @@ with open(cfg_path, "w", encoding="utf-8") as f:
     f.write("\n")
 
 print(f"[setup] Updated {cfg_path}")
-model_key = "openai_model" if cfg.get("llm_provider") == "openai" else "ollama_model"
-print(f"[setup] llm_provider={cfg.get('llm_provider')} model={cfg.get(model_key)}")
+if cfg.get("llm_provider") == "codex":
+    model = cfg.get("codex_model") or "logged-in default"
+else:
+    model = cfg.get("ollama_model")
+print(f"[setup] llm_provider={cfg.get('llm_provider')} model={model}")
 print(f"[setup] stt_provider={cfg.get('stt_provider')}")
 PY
 

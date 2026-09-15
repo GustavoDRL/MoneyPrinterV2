@@ -59,9 +59,9 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# Keep credentials local (the .env file is ignored by Git)
+# Keep optional integration credentials local (the .env file is ignored by Git)
 cp .env.example .env
-# Edit .env and set OPENAI_API_KEY. Set GEMINI_API_KEY for video images.
+# Run `codex login` once. Set GEMINI_API_KEY in .env for video images.
 
 # Safe text-only connectivity demo (does not publish anything)
 python3 scripts/demo_llm.py

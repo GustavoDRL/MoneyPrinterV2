@@ -202,7 +202,9 @@ def main():
                         user_input = int(question("Select an Option: "))
 
                         cron_script_path = os.path.join(ROOT_DIR, "src", "cron.py")
-                        command = ["python", cron_script_path, "youtube", selected_account['id'], get_active_model()]
+                        command = ["python", cron_script_path, "youtube", selected_account['id']]
+                        if get_active_model():
+                            command.append(get_active_model())
 
                         def job():
                             subprocess.run(command)
@@ -333,7 +335,9 @@ def main():
                         user_input = int(question("Select an Option: "))
 
                         cron_script_path = os.path.join(ROOT_DIR, "src", "cron.py")
-                        command = ["python", cron_script_path, "twitter", selected_account['id'], get_active_model()]
+                        command = ["python", cron_script_path, "twitter", selected_account['id']]
+                        if get_active_model():
+                            command.append(get_active_model())
 
                         def job():
                             subprocess.run(command)
@@ -455,10 +459,13 @@ if __name__ == "__main__":
 
     # Select the configured text-generation provider and model.
     llm_provider = get_llm_provider()
-    if llm_provider == "openai":
-        configured_model = get_openai_model()
-        select_model(configured_model)
-        success(f"Using OpenAI model: {configured_model}")
+    if llm_provider == "codex":
+        configured_model = get_codex_model()
+        if configured_model:
+            select_model(configured_model)
+            success(f"Using logged-in Codex model: {configured_model}")
+        else:
+            success("Using the logged-in Codex account and its default model.")
     elif llm_provider == "local_ollama":
         configured_model = get_ollama_model()
         if configured_model:
@@ -497,7 +504,7 @@ if __name__ == "__main__":
     else:
         error(
             f"Unsupported llm_provider '{llm_provider}'. "
-            "Use 'openai' or 'local_ollama'."
+            "Use 'codex' or 'local_ollama'."
         )
         sys.exit(1)
 

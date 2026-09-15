@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import subprocess
 import sys
 from typing import Tuple
 
@@ -63,30 +64,45 @@ def main() -> int:
     else:
         warn("firefox_profile is empty. Twitter/YouTube automation requires this.")
 
-    # Text generation (OpenAI or local Ollama)
+    # Text generation (logged-in Codex or local Ollama)
     llm_provider = str(cfg.get("llm_provider", "local_ollama")).strip().lower()
     ok(f"llm_provider={llm_provider}")
 
-    if llm_provider == "openai":
-        model = str(cfg.get("openai_model", "gpt-5.6-luna")).strip()
-        if not model:
-            fail("openai_model is empty")
-            failures += 1
+    if llm_provider == "codex":
+        model = str(cfg.get("codex_model", "")).strip()
+        if model:
+            ok(f"codex_model={model}")
         else:
-            ok(f"openai_model={model}")
+            ok("codex_model uses the logged-in default")
 
-        if os.environ.get("OPENAI_API_KEY", "").strip():
-            ok("OPENAI_API_KEY is set")
-        else:
-            fail("OPENAI_API_KEY is not set")
+        try:
+            import openai_codex  # noqa: F401
+
+            ok("OpenAI Codex Python SDK is installed")
+        except Exception as exc:
+            fail(f"OpenAI Codex Python SDK is not importable: {exc}")
             failures += 1
 
         try:
-            import openai  # noqa: F401
-
-            ok("OpenAI Python SDK is installed")
+            auth = subprocess.run(
+                ["codex", "login", "status"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            auth_detail = "\n".join(
+                part.strip() for part in (auth.stdout, auth.stderr) if part.strip()
+            )
+            if auth.returncode == 0 and "Logged in" in auth_detail:
+                login_line = next(
+                    line for line in auth_detail.splitlines() if "Logged in" in line
+                )
+                ok(login_line)
+            else:
+                fail("Codex is not logged in. Run 'codex login'.")
+                failures += 1
         except Exception as exc:
-            fail(f"OpenAI Python SDK is not importable: {exc}")
+            fail(f"Could not check Codex login: {exc}")
             failures += 1
     elif llm_provider == "local_ollama":
         base = str(cfg.get("ollama_base_url", "http://127.0.0.1:11434")).rstrip("/")
@@ -108,7 +124,7 @@ def main() -> int:
     else:
         fail(
             f"Unsupported llm_provider '{llm_provider}'. "
-            "Expected 'openai' or 'local_ollama'."
+            "Expected 'codex' or 'local_ollama'."
         )
         failures += 1
 

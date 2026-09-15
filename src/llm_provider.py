@@ -1,11 +1,11 @@
 import ollama
-from openai import OpenAI
+from openai_codex import Codex, CodexConfig, Sandbox
 
 from config import (
+    ROOT_DIR,
+    get_codex_model,
     get_llm_provider,
     get_ollama_base_url,
-    get_openai_api_key,
-    get_openai_model,
 )
 
 _selected_model: str | None = None
@@ -13,15 +13,6 @@ _selected_model: str | None = None
 
 def _client() -> ollama.Client:
     return ollama.Client(host=get_ollama_base_url())
-
-
-def _openai_client() -> OpenAI:
-    api_key = get_openai_api_key()
-    if not api_key:
-        raise RuntimeError(
-            "OPENAI_API_KEY is not set. Export it before using the OpenAI provider."
-        )
-    return OpenAI(api_key=api_key)
 
 
 def list_models() -> list[str]:
@@ -55,7 +46,7 @@ def get_active_model() -> str | None:
 
 def generate_text(prompt: str, model_name: str = None) -> str:
     """
-    Generates text using the configured OpenAI or local Ollama provider.
+    Generates text using the logged-in Codex SDK or local Ollama provider.
 
     Args:
         prompt (str): User prompt
@@ -67,29 +58,36 @@ def generate_text(prompt: str, model_name: str = None) -> str:
     provider = get_llm_provider()
     model = model_name or _selected_model
 
-    if provider == "openai" and not model:
-        model = get_openai_model()
+    if provider == "codex" and not model:
+        model = get_codex_model() or None
+
+    if provider == "codex":
+        with Codex(CodexConfig(cwd=ROOT_DIR)) as codex:
+            thread = codex.thread_start(
+                model=model,
+                sandbox=Sandbox.read_only,
+                ephemeral=True,
+                developer_instructions=(
+                    "You are a text-generation component. Do not inspect files, "
+                    "run commands, or use tools. Return only the requested final text."
+                ),
+            )
+            result = thread.run(prompt)
+
+        output_text = str(result.final_response or "").strip()
+        if not output_text:
+            raise RuntimeError("Codex returned an empty text response.")
+        return output_text
 
     if not model:
         raise RuntimeError(
             "No LLM model selected. Call select_model() first or configure a model."
         )
 
-    if provider == "openai":
-        response = _openai_client().responses.create(
-            model=model,
-            input=prompt,
-            store=False,
-        )
-        output_text = response.output_text.strip()
-        if not output_text:
-            raise RuntimeError("OpenAI returned an empty text response.")
-        return output_text
-
     if provider != "local_ollama":
         raise ValueError(
             f"Unsupported llm_provider '{provider}'. "
-            "Expected 'openai' or 'local_ollama'."
+            "Expected 'codex' or 'local_ollama'."
         )
 
     response = _client().chat(

@@ -8,7 +8,7 @@ prettytable
 webdriver_manager
 selenium
 ollama
-openai
+openai-codex==0.154.0
 moviepy==1.0.3
 Pillow>=10.0.0
 yagmail
