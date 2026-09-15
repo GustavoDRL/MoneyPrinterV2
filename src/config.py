@@ -3,9 +3,11 @@ import sys
 import json
 import srt_equalizer
 
+from dotenv import load_dotenv
 from termcolor import colored
 
 ROOT_DIR = os.path.dirname(sys.path[0])
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 def assert_folder_structure() -> None:
     """
@@ -68,6 +70,20 @@ def get_headless() -> bool:
     """
     with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
         return json.load(file)["headless"]
+
+def get_llm_provider() -> str:
+    """Gets the configured text-generation provider."""
+    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
+        return str(json.load(file).get("llm_provider", "local_ollama")).strip().lower()
+
+def get_openai_model() -> str:
+    """Gets the OpenAI model used for text generation."""
+    with open(os.path.join(ROOT_DIR, "config.json"), "r") as file:
+        return str(json.load(file).get("openai_model", "gpt-5.6-luna")).strip()
+
+def get_openai_api_key() -> str:
+    """Gets the OpenAI API key from the environment without storing it in config."""
+    return os.environ.get("OPENAI_API_KEY", "").strip()
 
 def get_ollama_base_url() -> str:
     """

@@ -63,23 +63,54 @@ def main() -> int:
     else:
         warn("firefox_profile is empty. Twitter/YouTube automation requires this.")
 
-    # Ollama (LLM)
-    base = str(cfg.get("ollama_base_url", "http://127.0.0.1:11434")).rstrip("/")
-    reachable, detail = check_url(f"{base}/api/tags")
-    if not reachable:
-        fail(f"Ollama is not reachable at {base}: {detail}")
-        failures += 1
-    else:
-        ok(f"Ollama reachable at {base}")
+    # Text generation (OpenAI or local Ollama)
+    llm_provider = str(cfg.get("llm_provider", "local_ollama")).strip().lower()
+    ok(f"llm_provider={llm_provider}")
+
+    if llm_provider == "openai":
+        model = str(cfg.get("openai_model", "gpt-5.6-luna")).strip()
+        if not model:
+            fail("openai_model is empty")
+            failures += 1
+        else:
+            ok(f"openai_model={model}")
+
+        if os.environ.get("OPENAI_API_KEY", "").strip():
+            ok("OPENAI_API_KEY is set")
+        else:
+            fail("OPENAI_API_KEY is not set")
+            failures += 1
+
         try:
-            tags = requests.get(f"{base}/api/tags", timeout=5).json()
-            models = [m.get("name") for m in tags.get("models", [])]
-            if models:
-                ok(f"Ollama models available: {', '.join(models[:10])}")
-            else:
-                warn("No models found on Ollama. Pull a model first (e.g. 'ollama pull llama3.2:3b').")
+            import openai  # noqa: F401
+
+            ok("OpenAI Python SDK is installed")
         except Exception as exc:
-            warn(f"Could not validate Ollama model list: {exc}")
+            fail(f"OpenAI Python SDK is not importable: {exc}")
+            failures += 1
+    elif llm_provider == "local_ollama":
+        base = str(cfg.get("ollama_base_url", "http://127.0.0.1:11434")).rstrip("/")
+        reachable, detail = check_url(f"{base}/api/tags")
+        if not reachable:
+            fail(f"Ollama is not reachable at {base}: {detail}")
+            failures += 1
+        else:
+            ok(f"Ollama reachable at {base}")
+            try:
+                tags = requests.get(f"{base}/api/tags", timeout=5).json()
+                models = [m.get("name") for m in tags.get("models", [])]
+                if models:
+                    ok(f"Ollama models available: {', '.join(models[:10])}")
+                else:
+                    warn("No models found on Ollama. Pull a model first (e.g. 'ollama pull llama3.2:3b').")
+            except Exception as exc:
+                warn(f"Could not validate Ollama model list: {exc}")
+    else:
+        fail(
+            f"Unsupported llm_provider '{llm_provider}'. "
+            "Expected 'openai' or 'local_ollama'."
+        )
+        failures += 1
 
     # Nano Banana 2 (image generation)
     api_key = cfg.get("nanobanana2_api_key", "") or os.environ.get("GEMINI_API_KEY", "")
