@@ -66,6 +66,9 @@ cp .env.example .env
 # Safe text-only connectivity demo (does not publish anything)
 python3 scripts/demo_llm.py
 
+# Small end-to-end demo: one concept and one image, saved under .mp/demo/
+python3 scripts/demo_content.py
+
 # Run the application
 python src/main.py
 ```
